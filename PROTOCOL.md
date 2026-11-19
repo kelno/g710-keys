@@ -1,6 +1,6 @@
 # Logitech G710+ protocol notes
 
-*[Written by Claude AI on Kelno's behalf; Kelno reviewed and edited it. If you'd rather not receive AI-assisted text, just say so, no problem.]*
+> Vibe-coded: these notes were written by Claude (Anthropic's AI) from tests on a real G710+.
 
 Keyboard: USB `046D:C24D`. Findings from one G710+ on Windows 11, 2026-11-19, found by reading the keyboard's HID descriptor and reports (no driver, packet capture or disassembly). "Confirmed" means tested on the keyboard; "guess" means not.
 

@@ -1,8 +1,6 @@
 # G710 keys
 
-*[Written by Claude AI on Kelno's behalf; Kelno reviewed and edited it. If you'd rather not receive AI-assisted text, just say so, no problem.]*
-
-The code, the notes and the protocol findings were made by Claude (Anthropic's AI) working with Kelno, who tested every step on the keyboard.
+> Vibe-coded: the code, this README and the protocol notes were written by Claude (Anthropic's AI), and every step was tested on a real G710+.
 
 Makes the Logitech G710+ G1-G6, M1-M3 and MR keys usable without Logitech's software, as keys that games and programs (AutoHotkey, PowerToys, OBS, Discord...) can bind. `g710.exe` uses about 2 MB of its own memory (1.8 MB private, 11 MB working set with shared Windows libraries, measured 2026-11-19), against 57 MB (100 MB) for Logitech Gaming Software.
 
