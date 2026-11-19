@@ -347,8 +347,7 @@ static void ShowMenu(void)
     else if (cmd == CMD_QUIT) DestroyWindow(g_wnd);
     else if (cmd == CMD_UNINSTALL &&
              MessageBoxW(g_wnd,
-                         L"Remove G710 keys from this PC?\n\nIt stops, no longer starts with Windows, and its program and "
-                         L"settings are deleted. G1-G6 go back to typing 1-6.",
+                         L"Remove G710 keys from this PC?",
                          APP_NAME, MB_YESNO | MB_ICONQUESTION) == IDYES) {
         g_uninstall = TRUE;
         DestroyWindow(g_wnd);
@@ -524,12 +523,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
 
     /* Started from anywhere but the install folder (a download, say): offer to install. */
     if (!portable && g_install_exe[0] && _wcsicmp(g_exe, g_install_exe) != 0) {
-        wchar_t msg[MAX_PATH + 256];
-        swprintf(msg, ARRAYSIZE(msg),
-                 L"Install G710 keys?\n\nYes: copies it to\n%s\nand starts it with Windows. You can delete this file "
-                 L"afterwards.\n\nNo: runs it from here, this time only.",
-                 g_install_dir);
-        int answer = MessageBoxW(NULL, msg, APP_NAME, MB_YESNOCANCEL | MB_ICONQUESTION);
+        int answer = MessageBoxW(NULL,
+                                 L"Install G710 keys?\n\nYes: installs it and starts it with Windows. You can delete "
+                                 L"this file afterwards.\n\nNo: runs it from here, this time only.",
+                                 APP_NAME, MB_YESNOCANCEL | MB_ICONQUESTION);
         if (answer == IDCANCEL) return 0;
         if (answer == IDYES) return InstallAndLaunch() ? 0 : 1;
     }
