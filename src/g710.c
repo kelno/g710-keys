@@ -38,6 +38,8 @@
 #define CMD_LOGON 1
 #define CMD_OPEN_INI 2
 #define CMD_QUIT 3
+#define CMD_UNINSTALL 4
+#define WINDOW_CLASS L"G710KeysWindow"
 #define CHECK_MS 30000
 #define RETRY_MS 2000
 
@@ -65,7 +67,8 @@ static HWND g_wnd;
 static HANDLE g_quit, g_recheck;
 static UINT g_taskbar_created;
 static NOTIFYICONDATAW g_nid;
-static BOOL g_found;
+static BOOL g_found, g_uninstall;
+static wchar_t g_install_dir[MAX_PATH], g_install_exe[MAX_PATH];
 
 /* Accepts F1-F24, A-Z, 0-9 or "none", optionally after Ctrl+, Shift+, Alt+, Win+. */
 static BOOL ParseKey(const wchar_t *text, Key *k)
@@ -354,6 +357,7 @@ static void ShowMenu(void)
     AppendMenuW(menu, MF_STRING | (LogonEnabled() ? MF_CHECKED : 0), CMD_LOGON, L"Start at logon");
     AppendMenuW(menu, MF_STRING, CMD_OPEN_INI, L"Open settings file");
     AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(menu, MF_STRING, CMD_UNINSTALL, L"Uninstall...");
     AppendMenuW(menu, MF_STRING, CMD_QUIT, L"Quit");
     POINT pt;
     GetCursorPos(&pt);
@@ -363,6 +367,14 @@ static void ShowMenu(void)
     if (cmd == CMD_LOGON) SetLogon(!LogonEnabled());
     else if (cmd == CMD_OPEN_INI) ShellExecuteW(NULL, L"open", L"notepad.exe", g_ini, NULL, SW_SHOWNORMAL);
     else if (cmd == CMD_QUIT) DestroyWindow(g_wnd);
+    else if (cmd == CMD_UNINSTALL &&
+             MessageBoxW(g_wnd,
+                         L"Remove G710 keys from this PC?\n\nIt stops, no longer starts with Windows, and its program and "
+                         L"settings are deleted. G1-G6 go back to typing 1-6.",
+                         APP_NAME, MB_YESNO | MB_ICONQUESTION) == IDYES) {
+        g_uninstall = TRUE;
+        DestroyWindow(g_wnd);
+    }
 }
 
 static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
@@ -387,19 +399,100 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcW(w, msg, wp, lp);
 }
 
-/* Settings file: g710.ini next to the exe if one is there (portable use), otherwise %APPDATA%\G710 keys\g710.ini. */
-static void FindIni(void)
+/* Settings file: g710.ini next to the exe if one is there (portable use), otherwise %APPDATA%\G710 keys\g710.ini.
+ * Returns TRUE for portable use. */
+static BOOL FindIni(void)
 {
     wcscpy_s(g_ini, MAX_PATH, g_exe);
     wchar_t *slash = wcsrchr(g_ini, L'\\');
     if (slash) wcscpy_s(slash + 1, MAX_PATH - (slash + 1 - g_ini), L"g710.ini");
-    if (GetFileAttributesW(g_ini) != INVALID_FILE_ATTRIBUTES) return;
+    if (GetFileAttributesW(g_ini) != INVALID_FILE_ATTRIBUTES) return TRUE;
     wchar_t dir[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, dir)) &&
         wcscat_s(dir, MAX_PATH, L"\\G710 keys") == 0) {
         CreateDirectoryW(dir, NULL);
         swprintf(g_ini, MAX_PATH, L"%s\\g710.ini", dir);
     }
+    return FALSE;
+}
+
+/* Where the program installs itself: %LOCALAPPDATA%\Programs\G710 keys\g710.exe, the usual per-user place. */
+static void FindInstallPaths(void)
+{
+    wchar_t base[MAX_PATH];
+    g_install_dir[0] = g_install_exe[0] = 0;
+    if (FAILED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, SHGFP_TYPE_CURRENT, base))) return;
+    swprintf(g_install_dir, MAX_PATH, L"%s\\Programs\\G710 keys", base);
+    swprintf(g_install_exe, MAX_PATH, L"%s\\g710.exe", g_install_dir);
+}
+
+/* Copies this exe to the install folder (closing a running copy first), sets start at logon, starts the copy. */
+static BOOL InstallAndLaunch(void)
+{
+    HWND running = FindWindowW(WINDOW_CLASS, NULL);
+    if (running) {
+        DWORD pid = 0;
+        GetWindowThreadProcessId(running, &pid);
+        HANDLE p = OpenProcess(SYNCHRONIZE, FALSE, pid);
+        PostMessageW(running, WM_CLOSE, 0, 0);
+        if (p) { WaitForSingleObject(p, 5000); CloseHandle(p); }
+    }
+    SHCreateDirectoryExW(NULL, g_install_dir, NULL);
+    if (!CopyFileW(g_exe, g_install_exe, FALSE)) {
+        wchar_t msg[MAX_PATH + 64];
+        swprintf(msg, ARRAYSIZE(msg), L"Couldn't copy G710 keys to\n%s", g_install_exe);
+        MessageBoxW(NULL, msg, APP_NAME, MB_ICONERROR);
+        return FALSE;
+    }
+    wcscpy_s(g_exe, MAX_PATH, g_install_exe);
+    SetLogon(TRUE);
+    ShellExecuteW(NULL, L"open", g_install_exe, NULL, NULL, SW_SHOWNORMAL);
+    return TRUE;
+}
+
+/* After Uninstall: G1-G6 back to 1-6, lights off, logon entry, settings and installed copy removed. */
+static void Uninstall(BOOL portable)
+{
+    SetLogon(FALSE);
+    USHORT in_len, feat_len;
+    HANDLE h = OpenVendor(&in_len, &feat_len);
+    if (h != INVALID_HANDLE_VALUE) {
+        BYTE buf[64] = {0x09};
+        if (feat_len >= 7 && feat_len <= sizeof buf && HidD_GetFeature(h, buf, feat_len)) {
+            for (int i = 0; i < 6; i++) buf[1 + i] = (BYTE)(0x1E + i);
+            HidD_SetFeature(h, buf, feat_len);
+            ZeroMemory(buf, sizeof buf);
+            buf[0] = 0x06;
+            HidD_SetFeature(h, buf, feat_len);
+        }
+        CloseHandle(h);
+    }
+    if (!portable) {
+        DeleteFileW(g_ini);
+        wchar_t *slash = wcsrchr(g_ini, L'\\');
+        if (slash) { *slash = 0; RemoveDirectoryW(g_ini); }
+    }
+    if (g_install_dir[0] && GetFileAttributesW(g_install_dir) != INVALID_FILE_ATTRIBUTES) {
+        /* This exe may be the installed one, still running: a short-lived cmd removes the folder after it exits. */
+        wchar_t cmdline[MAX_PATH + 96];
+        swprintf(cmdline, ARRAYSIZE(cmdline), L"cmd.exe /c ping -n 3 127.0.0.1 >nul & rmdir /s /q \"%s\"", g_install_dir);
+        STARTUPINFOW si = {sizeof si};
+        PROCESS_INFORMATION pi;
+        if (CreateProcessW(NULL, cmdline, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+        }
+    }
+}
+
+static void Balloon(const wchar_t *title, const wchar_t *text, DWORD icon)
+{
+    g_nid.uFlags |= NIF_INFO;
+    g_nid.dwInfoFlags = icon;
+    wcscpy_s(g_nid.szInfoTitle, ARRAYSIZE(g_nid.szInfoTitle), title);
+    wcscpy_s(g_nid.szInfo, ARRAYSIZE(g_nid.szInfo), text);
+    Shell_NotifyIconW(NIM_MODIFY, &g_nid);
+    g_nid.uFlags &= ~NIF_INFO;
 }
 
 /* Logitech Gaming Software writes its own G-key table and would undo ours: say so in the tray.
@@ -416,13 +509,10 @@ static void WarnIfLogitechRuns(void)
             if (!_wcsicmp(pe.szExeFile, NAMES[i])) found = NAMES[i];
     CloseHandle(snap);
     if (!found) return;
-    g_nid.uFlags |= NIF_INFO;
-    g_nid.dwInfoFlags = NIIF_WARNING;
-    wcscpy_s(g_nid.szInfoTitle, ARRAYSIZE(g_nid.szInfoTitle), L"Logitech software is running");
-    swprintf(g_nid.szInfo, ARRAYSIZE(g_nid.szInfo),
+    wchar_t text[256];
+    swprintf(text, ARRAYSIZE(text),
              L"%s changes the G keys too, so the two will undo each other. Quit it, or stop it starting with Windows.", found);
-    Shell_NotifyIconW(NIM_MODIFY, &g_nid);
-    g_nid.uFlags &= ~NIF_INFO;
+    Balloon(L"Logitech software is running", text, NIIF_WARNING);
 }
 
 /* Returns TRUE when it created the file, i.e. on first run. */
@@ -449,17 +539,30 @@ static BOOL WriteDefaultIni(void)
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
 {
     (void)prev; (void)cmd; (void)show;
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    GetModuleFileNameW(NULL, g_exe, MAX_PATH);
+    BOOL portable = FindIni();
+    FindInstallPaths();
+
+    /* Started from anywhere but the install folder (a download, say): offer to install. */
+    if (!portable && g_install_exe[0] && _wcsicmp(g_exe, g_install_exe) != 0) {
+        wchar_t msg[MAX_PATH + 256];
+        swprintf(msg, ARRAYSIZE(msg),
+                 L"Install G710 keys?\n\nYes: copies it to\n%s\nand starts it with Windows. You can delete this file "
+                 L"afterwards.\n\nNo: runs it from here, this time only.",
+                 g_install_dir);
+        int answer = MessageBoxW(NULL, msg, APP_NAME, MB_YESNOCANCEL | MB_ICONQUESTION);
+        if (answer == IDCANCEL) return 0;
+        if (answer == IDYES) return InstallAndLaunch() ? 0 : 1;
+    }
+
     HANDLE single = CreateMutexW(NULL, FALSE, L"Local\\G710KeysListener");
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         MessageBoxW(NULL, L"G710 keys is already running (blue G in the tray).", APP_NAME, MB_ICONINFORMATION);
         return 0;
     }
 
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    GetModuleFileNameW(NULL, g_exe, MAX_PATH);
-    FindIni();
     BOOL first_run = WriteDefaultIni();
-    if (LogonEnabled()) SetLogon(TRUE); /* keeps the logon entry pointing here if the exe was moved */
     LoadKeys();
     int set = (int)GetPrivateProfileIntW(L"state", L"set", 1, g_ini) - 1;
     g_set = (set >= 0 && set <= 2) ? set : 0;
@@ -467,7 +570,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
     WNDCLASSW wc = {0};
     wc.lpfnWndProc = WndProc;
     wc.hInstance = inst;
-    wc.lpszClassName = L"G710KeysWindow";
+    wc.lpszClassName = WINDOW_CLASS;
     RegisterClassW(&wc);
     /* A hidden top-level window: message-only windows don't get WM_POWERBROADCAST or TaskbarCreated. */
     g_wnd = CreateWindowExW(WS_EX_TOOLWINDOW, wc.lpszClassName, APP_NAME, WS_POPUP, 0, 0, 0, 0, NULL, NULL, inst, NULL);
@@ -486,12 +589,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
     g_recheck = CreateEventW(NULL, FALSE, FALSE, NULL);
     HANDLE thread = CreateThread(NULL, 64 * 1024, ReaderThread, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
 
-    if (first_run &&
-        MessageBoxW(NULL,
-                    L"G710 keys is running: it's the blue G in the tray, where you can change the keys or quit.\n\n"
-                    L"Start it automatically when you log on to Windows?",
-                    APP_NAME, MB_YESNO | MB_ICONQUESTION) == IDYES)
-        SetLogon(TRUE);
+    if (first_run)
+        Balloon(APP_NAME L" is running", L"G1-G6 now send F13-F18; M1-M3 switch sets. Click the blue G to change keys or quit.",
+                NIIF_INFO);
     WarnIfLogitechRuns();
 
     MSG msg;
@@ -501,6 +601,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
     }
     SetEvent(g_quit);
     WaitForSingleObject(thread, 5000);
+    if (g_uninstall) Uninstall(portable);
     CloseHandle(single);
     return 0;
 }

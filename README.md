@@ -30,16 +30,22 @@ Known limits:
 
 ## Install
 
-1. Download `g710.exe` (Windows 10 or 11, 64-bit) and put it wherever you like.
-2. Run it. A blue G appears in the tray; hovering it shows the active set.
-3. The first time, it asks whether to start with Windows. You can change that later in the tray menu (Start at logon), which adds or removes a "G710 keys" entry in the current user's Run key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`). If you move `g710.exe`, run it once from its new place and the entry follows.
+1. Download `g710.exe` (Windows 10 or 11, 64-bit) and run it. The exe isn't signed, so Windows may say "Windows protected your PC": click More info, then Run anyway.
+2. It asks whether to install:
+   - Yes: it copies itself to `%LOCALAPPDATA%\Programs\G710 keys\`, starts with Windows from there, and starts now. The downloaded file can be deleted.
+   - No: it runs from where it is, this time only.
+3. A blue G appears in the tray; hovering it shows the active set. Clicking it gives the menu: Start at logon, Open settings file, Uninstall, Quit.
 4. If Logitech Gaming Software starts with Windows, turn that off: Task Manager > Startup apps > "Launch LCore" > Disable.
 
-No admin rights, driver or installer needed.
+No admin rights or driver needed. To update, run the new `g710.exe` and answer Yes: it replaces the installed copy and keeps the settings.
+
+Start at logon is a "G710 keys" entry in the current user's Run key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`).
+
+Portable use: put a `g710.ini` next to `g710.exe` (an empty file is enough). It then uses that file for its settings and never offers to install.
 
 ## Uninstall
 
-Tray icon > untick Start at logon, then Quit. Delete `g710.exe` and the `%APPDATA%\G710 keys` folder. Replug the keyboard (or restart) and the G keys type 1-6 again.
+Tray icon > Uninstall. It removes the logon entry, the installed copy and the settings, and puts G1-G6 back to typing 1-6.
 
 ## Build
 
