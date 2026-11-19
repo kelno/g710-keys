@@ -16,7 +16,9 @@ Tested on a real G710+: every key in every set, setting the keys again after a r
 
 ## Release
 
-`.github/workflows/build.yml` builds on every push (the exe is attached to the run as an artifact). To publish a version: update the version numbers in `src/g710.rc`, commit, then push a tag such as `v1.0.1`; the workflow creates a release of that name with `g710.exe` attached.
+`.github/workflows/build.yml` builds on every push (the exe is attached to the run as an artifact). To publish a version: update the version numbers in `src/g710.rc`, commit, then push a tag such as `v1.0.3`; the workflow creates a release of that name with `g710.exe` attached and its SHA-256 in the notes.
+
+On every push, the workflow also signs a build attestation (`actions/attest-build-provenance`): a public, Sigstore-signed record that this exact exe was built by this workflow from that commit. `gh attestation verify g710.exe --repo kelno/g710-keys` checks a download against it. The exe isn't bit-for-bit reproducible (the Microsoft compiler stamps build details into it), so a local build won't match a release's hash; the attestation is what ties a release to the code.
 
 ## Folder
 

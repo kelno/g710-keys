@@ -1,5 +1,7 @@
 # Builds g710.exe on every push and pull request (downloadable from the run's page as an artifact).
-# Pushing a tag such as v1.0.0 also creates a GitHub release of that name with g710.exe attached.
+# On pushes, GitHub also signs a build attestation: a public record that this exact exe was built here,
+# from this commit (check with: gh attestation verify g710.exe --repo kelno/g710-keys).
+# Pushing a tag such as v1.0.3 also creates a GitHub release of that name with g710.exe and its SHA-256.
 name: Build
 
 on:
@@ -11,6 +13,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -22,6 +26,12 @@ jobs:
         shell: cmd
         run: build.cmd
 
+      - name: Attest where g710.exe was built
+        if: github.event_name == 'push'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: g710.exe
+
       - uses: actions/upload-artifact@v4
         with:
           name: g710
@@ -32,4 +42,12 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$env:GITHUB_REF_NAME" g710.exe --title "$env:GITHUB_REF_NAME" --generate-notes
+        run: |
+          $hash = (Get-FileHash g710.exe -Algorithm SHA256).Hash.ToLower()
+          $notes = @(
+            "SHA-256 of ``g710.exe``: ``$hash``"
+            ""
+            "Check that this exe was built by GitHub from this repo's code (needs the GitHub CLI):"
+            "``gh attestation verify g710.exe --repo $env:GITHUB_REPOSITORY``"
+          ) -join "`n"
+          gh release create "$env:GITHUB_REF_NAME" g710.exe --title "$env:GITHUB_REF_NAME" --notes "$notes" --generate-notes
