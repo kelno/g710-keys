@@ -6,8 +6,6 @@ Makes the Logitech G710+ G1-G6, M1-M3 and MR keys work without Logitech's softwa
 
 **Download:** [latest release](https://github.com/kelno/g710-keys/releases/latest) (`g710.exe`).
 
-# For users
-
 ## Install
 
 1. Download `g710.exe` and run it. The exe isn't signed, so Windows may say "Windows protected your PC": click More info, then Run anyway.
@@ -57,30 +55,10 @@ Tray icon > Uninstall. It removes the start-with-Windows entry, the installed co
 - Portable use: put a `g710.ini` next to `g710.exe` (an empty file is enough). It then keeps its settings there and never offers to install.
 - Start with Windows is a "G710 keys" entry in the current user's Run key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`).
 
-# For developers
+## Development
 
-## How it works
+Building, releasing and how it works: [DEVELOPMENT.md](DEVELOPMENT.md). What was found about the keyboard: [PROTOCOL.md](PROTOCOL.md).
 
-The keyboard has a table saying what each G key types (vendor feature report 0x09); it resets to 1-6 whenever the keyboard is plugged in or the PC starts. `g710.exe` writes the active set's keys into it on start, after a replug, after the PC wakes, on each M key press, and checks it every 30 seconds. Plain keys (F13) are then sent by the keyboard itself. Keys with Ctrl/Shift/Alt/Win don't fit in that table, so `g710.exe` sends those itself (`SendInput`) when it reads the G key from the keyboard's vendor collection, as it does for MR. The M lights are feature report 0x06. Everything found about the keyboard: [PROTOCOL.md](PROTOCOL.md).
-
-Tested on a real G710+: every key in every set, setting the keys again after a replug, install, update and Uninstall. Not tested yet: setting them again after the PC wakes from sleep.
-
-## Build
-
-`build.cmd` builds `g710.exe` from `src/g710.c` and `src/g710.rc` (icon and version information) with Visual Studio's C++ tools, found with `vswhere`. No other dependency: Windows' own HID functions.
-
-## Release
-
-`.github/workflows/build.yml` builds on every push (the exe is attached to the run as an artifact). To publish a version: update the version numbers in `src/g710.rc`, commit, then push a tag such as `v1.0.0`; the workflow creates a release of that name with `g710.exe` attached.
-
-## Folder
-
-- `src/g710.c`: the program; `src/g710.rc` and `src/g710.ico`: its icon and version information.
-- `.github/workflows/build.yml`: the GitHub build and release.
-- `PROTOCOL.md`: what was found about the keyboard.
-- `tools/`: scripts used to find it. The Python ones need `.venv` (`uv venv .venv`, then `uv pip install --python .venv\Scripts\python.exe hidapi`): `enum.py` and `features.py` only read; `capture.py` and `keywatch.py` log key presses; `gkeys_set.py` and `gkeys_off.py` write the G-key table. `make_icon.ps1` redraws `src/g710.ico` (run it with Windows PowerShell).
-- `captures/`: logs from the tests.
-
-# License
+## License
 
 MIT, see [LICENSE](LICENSE).
