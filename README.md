@@ -22,6 +22,8 @@ The keyboard has a table saying what each G key types; it resets to 1-6 whenever
 
 Quit it from the tray icon. The G keys then keep sending the last set's plain keys until the keyboard is replugged, when they go back to 1-6.
 
+Not tested yet: setting the keys again after the keyboard is replugged or the PC wakes from sleep, and the tray's Uninstall.
+
 Known limits:
 - Keys `g710.exe` sends itself (Ctrl combinations, MR) don't reach programs running as administrator, a Windows rule. Plain keys do, since the keyboard sends them.
 - Don't run Logitech Gaming Software at the same time: it writes its own G-key table, and the two would undo each other. `g710.exe` shows a warning in the tray if it finds it running. Logitech G Hub doesn't support the G710+ as far as known, so it shouldn't interfere (not tested while it ran).
