@@ -1,4 +1,4 @@
-# G710 keys
+# G710+ keys
 
 > Vibe-coded: the code, this README and the protocol notes were written by Claude AI, and every step was tested on a real G710+.
 

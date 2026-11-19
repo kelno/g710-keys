@@ -31,7 +31,8 @@
 #pragma comment(lib, "hid")
 #pragma comment(lib, "advapi32")
 
-#define APP_NAME L"G710 keys"
+#define APP_NAME L"G710+ keys" /* what people read */
+#define RUN_VALUE L"G710 keys" /* the logon entry's name: kept so existing installs keep working */
 #define RUN_KEY L"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 #define WM_APP_TRAY (WM_APP + 1)
 #define WM_APP_STATUS (WM_APP + 2) /* wParam: 1 keyboard found, 0 not found; lParam: active set 0-2 */
@@ -298,7 +299,7 @@ static BOOL LogonEnabled(void)
 {
     wchar_t val[MAX_PATH + 4];
     DWORD size = sizeof val;
-    return RegGetValueW(HKEY_CURRENT_USER, RUN_KEY, APP_NAME, RRF_RT_REG_SZ, NULL, val, &size) == ERROR_SUCCESS;
+    return RegGetValueW(HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE, RRF_RT_REG_SZ, NULL, val, &size) == ERROR_SUCCESS;
 }
 
 static void SetLogon(BOOL on)
@@ -306,9 +307,9 @@ static void SetLogon(BOOL on)
     if (on) {
         wchar_t val[MAX_PATH + 4];
         swprintf(val, MAX_PATH + 4, L"\"%s\"", g_exe);
-        RegSetKeyValueW(HKEY_CURRENT_USER, RUN_KEY, APP_NAME, REG_SZ, val, (DWORD)((wcslen(val) + 1) * sizeof(wchar_t)));
+        RegSetKeyValueW(HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE, REG_SZ, val, (DWORD)((wcslen(val) + 1) * sizeof(wchar_t)));
     } else {
-        RegDeleteKeyValueW(HKEY_CURRENT_USER, RUN_KEY, APP_NAME);
+        RegDeleteKeyValueW(HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE);
     }
 }
 
@@ -347,7 +348,7 @@ static void ShowMenu(void)
     else if (cmd == CMD_QUIT) DestroyWindow(g_wnd);
     else if (cmd == CMD_UNINSTALL &&
              MessageBoxW(g_wnd,
-                         L"Remove G710 keys from this PC?",
+                         L"Remove G710+ keys from this PC?",
                          APP_NAME, MB_YESNO | MB_ICONQUESTION) == IDYES) {
         g_uninstall = TRUE;
         DestroyWindow(g_wnd);
@@ -417,7 +418,7 @@ static BOOL InstallAndLaunch(void)
     SHCreateDirectoryExW(NULL, g_install_dir, NULL);
     if (!CopyFileW(g_exe, g_install_exe, FALSE)) {
         wchar_t msg[MAX_PATH + 64];
-        swprintf(msg, ARRAYSIZE(msg), L"Couldn't copy G710 keys to\n%s", g_install_exe);
+        swprintf(msg, ARRAYSIZE(msg), L"Couldn't copy G710+ keys to\n%s", g_install_exe);
         MessageBoxW(NULL, msg, APP_NAME, MB_ICONERROR);
         return FALSE;
     }
@@ -497,7 +498,7 @@ static BOOL WriteDefaultIni(void)
 {
     if (GetFileAttributesW(g_ini) != INVALID_FILE_ATTRIBUTES) return FALSE;
     static const char text[] =
-        "; G710 keys settings. Saved changes apply within 30 seconds, or on the next M key press.\r\n"
+        "; G710+ keys settings. Saved changes apply within 30 seconds, or on the next M key press.\r\n"
         "; A key is F1-F24, A-Z, 0-9 or none, optionally after Ctrl+, Shift+, Alt+, Win+ (Ctrl+F13).\r\n"
         "; Plain keys are sent by the keyboard itself; keys with Ctrl/Shift/Alt/Win by g710.exe.\r\n"
         "[M1]\r\nG1=F13\r\nG2=F14\r\nG3=F15\r\nG4=F16\r\nG5=F17\r\nG6=F18\r\n"
@@ -524,7 +525,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
     /* Started from anywhere but the install folder (a download, say): offer to install. */
     if (!portable && g_install_exe[0] && _wcsicmp(g_exe, g_install_exe) != 0) {
         int answer = MessageBoxW(NULL,
-                                 L"Install G710 keys?\n\nYes: installs it and starts it with Windows. You can delete "
+                                 L"Install G710+ keys?\n\nYes: installs it and starts it with Windows. You can delete "
                                  L"this file afterwards.\n\nNo: runs it from here, this time only.",
                                  APP_NAME, MB_YESNOCANCEL | MB_ICONQUESTION);
         if (answer == IDCANCEL) return 0;
@@ -533,7 +534,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
 
     HANDLE single = CreateMutexW(NULL, FALSE, L"Local\\G710KeysListener");
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
-        MessageBoxW(NULL, L"G710 keys is already running (blue G in the tray).", APP_NAME, MB_ICONINFORMATION);
+        MessageBoxW(NULL, L"G710+ keys is already running (blue G in the tray).", APP_NAME, MB_ICONINFORMATION);
         return 0;
     }
 

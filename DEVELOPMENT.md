@@ -1,4 +1,4 @@
-# G710 keys: development
+# G710+ keys: development
 
 > Vibe-coded: the code and these notes were written by Claude AI, and every step was tested on a real G710+.
 
