@@ -1,6 +1,6 @@
 # G710 keys
 
-> Vibe-coded: the code, this README and the protocol notes were written by Claude (Anthropic's AI), and every step was tested on a real G710+.
+> Vibe-coded: the code, this README and the protocol notes were written by Claude AI, and every step was tested on a real G710+.
 
 Makes the Logitech G710+ G1-G6, M1-M3 and MR keys work without Logitech's software, as keys that games and programs (AutoHotkey, PowerToys, OBS, Discord...) can bind. A small tray program for Windows 10 and 11, using about 2 MB of memory where Logitech Gaming Software used 57 MB.
 
