@@ -1,0 +1,35 @@
+# Builds g710.exe on every push and pull request (downloadable from the run's page as an artifact).
+# Pushing a tag such as v1.0.0 also creates a GitHub release of that name with g710.exe attached.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build g710.exe
+        shell: cmd
+        run: build.cmd
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: g710
+          path: g710.exe
+
+      - name: Create the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$env:GITHUB_REF_NAME" g710.exe --title "$env:GITHUB_REF_NAME" --generate-notes

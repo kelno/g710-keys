@@ -312,34 +312,12 @@ static void SetLogon(BOOL on)
     }
 }
 
-/* A small blue "G" for the tray. */
-static HICON MakeIcon(void)
+/* The blue "G" (src/g710.ico, resource 1) at the tray's size. */
+static HICON LoadTrayIcon(HINSTANCE inst)
 {
-    int cx = GetSystemMetrics(SM_CXSMICON), cy = GetSystemMetrics(SM_CYSMICON);
-    HDC screen = GetDC(NULL), dc = CreateCompatibleDC(screen);
-    HBITMAP color = CreateCompatibleBitmap(screen, cx, cy), mask = CreateBitmap(cx, cy, 1, 1, NULL);
-    HGDIOBJ old = SelectObject(dc, color);
-    RECT r = {0, 0, cx, cy};
-    HBRUSH bg = CreateSolidBrush(RGB(0, 103, 192));
-    FillRect(dc, &r, bg);
-    DeleteObject(bg);
-    HFONT font = CreateFontW(-cy, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    HGDIOBJ old_font = SelectObject(dc, font);
-    SetBkMode(dc, TRANSPARENT);
-    SetTextColor(dc, RGB(255, 255, 255));
-    DrawTextW(dc, L"G", 1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    SelectObject(dc, old_font);
-    DeleteObject(font);
-    SelectObject(dc, mask);
-    PatBlt(dc, 0, 0, cx, cy, BLACKNESS);
-    SelectObject(dc, old);
-    ICONINFO ii = {TRUE, 0, 0, mask, color};
-    HICON icon = CreateIconIndirect(&ii);
-    DeleteObject(color);
-    DeleteObject(mask);
-    DeleteDC(dc);
-    ReleaseDC(NULL, screen);
-    return icon;
+    HICON icon = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON),
+                                   GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+    return icon ? icon : LoadIconW(NULL, IDI_APPLICATION);
 }
 
 static void TrayUpdate(DWORD op)
@@ -582,7 +560,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
     g_nid.uID = 1;
     g_nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     g_nid.uCallbackMessage = WM_APP_TRAY;
-    g_nid.hIcon = MakeIcon();
+    g_nid.hIcon = LoadTrayIcon(inst);
     TrayUpdate(NIM_ADD);
 
     g_quit = CreateEventW(NULL, TRUE, FALSE, NULL);

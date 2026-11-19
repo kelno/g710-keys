@@ -49,11 +49,16 @@ Tray icon > Uninstall. It removes the logon entry, the installed copy and the se
 
 ## Build
 
-`build.cmd` builds `g710.exe` from `src/g710.c` and `src/g710.rc` (version information) with Visual Studio's C++ tools (path set at the top of `build.cmd`). No other dependency: Windows' own HID functions.
+`build.cmd` builds `g710.exe` from `src/g710.c` and `src/g710.rc` (icon and version information) with Visual Studio's C++ tools, found with `vswhere`. No other dependency: Windows' own HID functions.
+
+On GitHub, `.github/workflows/build.yml` builds it on every push (the exe is attached to the run as an artifact). To publish a version: update the version numbers in `src/g710.rc`, commit, then push a tag such as `v1.0.0`; the workflow creates a release of that name with `g710.exe` attached.
+
+The icon comes from `tools/make_icon.ps1` (run it with Windows PowerShell to redraw `src/g710.ico`).
 
 ## Folder
 
-- `src/g710.c`: the program; `src/g710.rc`: its version information.
+- `src/g710.c`: the program; `src/g710.rc` and `src/g710.ico`: its icon and version information.
+- `.github/workflows/build.yml`: the GitHub build and release.
 - `PROTOCOL.md`: what was found about the keyboard.
 - `tools/`: Python scripts used to find it (need `.venv`, made with `uv venv .venv` then `uv pip install --python .venv\Scripts\python.exe hidapi`). `enum.py` and `features.py` only read; `capture.py` and `keywatch.py` log key presses; `gkeys_set.py` and `gkeys_off.py` write the G-key table.
 - `captures/`: logs from the tests.
