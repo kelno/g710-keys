@@ -16,7 +16,7 @@ M1, M2 and M3 choose one of three sets for G1-G6; the chosen M key lights up, an
 
 MR sends Ctrl+F19 in every set. No real keyboard has F13-F24, so nothing else uses them.
 
-To change them: tray icon (blue G) > Open settings file, edit `g710.ini`, save. Changes apply within 30 seconds or on the next M key press. A key is F1-F24, A-Z, 0-9 or `none`, optionally after `Ctrl+`, `Shift+`, `Alt+`, `Win+`.
+To change them: tray icon (blue G) > Open settings file, edit, save. The file is `%APPDATA%\G710 keys\g710.ini`, or `g710.ini` next to `g710.exe` if one is there (for running it from a USB stick, say). Changes apply within 30 seconds or on the next M key press. A key is F1-F24, A-Z, 0-9 or `none`, optionally after `Ctrl+`, `Shift+`, `Alt+`, `Win+`.
 
 ## How it works
 
@@ -26,20 +26,32 @@ Quit it from the tray icon. The G keys then keep sending the last set's plain ke
 
 Known limits:
 - Keys `g710.exe` sends itself (Ctrl combinations, MR) don't reach programs running as administrator, a Windows rule. Plain keys do, since the keyboard sends them.
-- Don't run Logitech Gaming Software or G Hub at the same time: they write their own G-key table, and the two would undo each other.
+- Don't run Logitech Gaming Software at the same time: it writes its own G-key table, and the two would undo each other. `g710.exe` shows a warning in the tray if it finds it running. Logitech G Hub doesn't support the G710+ as far as known, so it shouldn't interfere (not tested while it ran).
 
-## Start and start at logon
+## Install
 
-- Start: run `g710.exe`. A blue G appears in the tray; hovering it shows the active set.
-- At logon: tray icon > Start at logon. It adds a "G710 keys" entry to the current user's Run key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`); untick it to remove it.
+1. Download `g710.exe` (Windows 10 or 11, 64-bit) and put it wherever you like.
+2. Run it. A blue G appears in the tray; hovering it shows the active set.
+3. The first time, it asks whether to start with Windows. You can change that later in the tray menu (Start at logon), which adds or removes a "G710 keys" entry in the current user's Run key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`). If you move `g710.exe`, run it once from its new place and the entry follows.
+4. If Logitech Gaming Software starts with Windows, turn that off: Task Manager > Startup apps > "Launch LCore" > Disable.
+
+No admin rights, driver or installer needed.
+
+## Uninstall
+
+Tray icon > untick Start at logon, then Quit. Delete `g710.exe` and the `%APPDATA%\G710 keys` folder. Replug the keyboard (or restart) and the G keys type 1-6 again.
 
 ## Build
 
-`build.cmd` builds `g710.exe` from `src/g710.c` with Visual Studio's C++ tools (path set at the top of `build.cmd`). No other dependency: Windows' own HID functions.
+`build.cmd` builds `g710.exe` from `src/g710.c` and `src/g710.rc` (version information) with Visual Studio's C++ tools (path set at the top of `build.cmd`). No other dependency: Windows' own HID functions.
 
 ## Folder
 
-- `src/g710.c`: the program.
+- `src/g710.c`: the program; `src/g710.rc`: its version information.
 - `PROTOCOL.md`: what was found about the keyboard.
 - `tools/`: Python scripts used to find it (need `.venv`, made with `uv venv .venv` then `uv pip install --python .venv\Scripts\python.exe hidapi`). `enum.py` and `features.py` only read; `capture.py` and `keywatch.py` log key presses; `gkeys_set.py` and `gkeys_off.py` write the G-key table.
 - `captures/`: logs from the tests.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

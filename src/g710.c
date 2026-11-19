@@ -17,6 +17,8 @@
 #define _UNICODE
 #include <windows.h>
 #include <shellapi.h>
+#include <shlobj.h>
+#include <tlhelp32.h>
 #include <setupapi.h>
 #include <hidsdi.h>
 #include <wchar.h>
@@ -385,9 +387,48 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcW(w, msg, wp, lp);
 }
 
-static void WriteDefaultIni(void)
+/* Settings file: g710.ini next to the exe if one is there (portable use), otherwise %APPDATA%\G710 keys\g710.ini. */
+static void FindIni(void)
 {
+    wcscpy_s(g_ini, MAX_PATH, g_exe);
+    wchar_t *slash = wcsrchr(g_ini, L'\\');
+    if (slash) wcscpy_s(slash + 1, MAX_PATH - (slash + 1 - g_ini), L"g710.ini");
     if (GetFileAttributesW(g_ini) != INVALID_FILE_ATTRIBUTES) return;
+    wchar_t dir[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, dir)) &&
+        wcscat_s(dir, MAX_PATH, L"\\G710 keys") == 0) {
+        CreateDirectoryW(dir, NULL);
+        swprintf(g_ini, MAX_PATH, L"%s\\g710.ini", dir);
+    }
+}
+
+/* Logitech Gaming Software writes its own G-key table and would undo ours: say so in the tray.
+ * G Hub isn't listed: it doesn't support the G710+ as far as known (not tested). */
+static void WarnIfLogitechRuns(void)
+{
+    static const wchar_t *NAMES[] = {L"LCore.exe"};
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) return;
+    PROCESSENTRY32W pe = {sizeof pe};
+    const wchar_t *found = NULL;
+    for (BOOL ok = Process32FirstW(snap, &pe); ok && !found; ok = Process32NextW(snap, &pe))
+        for (int i = 0; i < ARRAYSIZE(NAMES); i++)
+            if (!_wcsicmp(pe.szExeFile, NAMES[i])) found = NAMES[i];
+    CloseHandle(snap);
+    if (!found) return;
+    g_nid.uFlags |= NIF_INFO;
+    g_nid.dwInfoFlags = NIIF_WARNING;
+    wcscpy_s(g_nid.szInfoTitle, ARRAYSIZE(g_nid.szInfoTitle), L"Logitech software is running");
+    swprintf(g_nid.szInfo, ARRAYSIZE(g_nid.szInfo),
+             L"%s changes the G keys too, so the two will undo each other. Quit it, or stop it starting with Windows.", found);
+    Shell_NotifyIconW(NIM_MODIFY, &g_nid);
+    g_nid.uFlags &= ~NIF_INFO;
+}
+
+/* Returns TRUE when it created the file, i.e. on first run. */
+static BOOL WriteDefaultIni(void)
+{
+    if (GetFileAttributesW(g_ini) != INVALID_FILE_ATTRIBUTES) return FALSE;
     static const char text[] =
         "; G710 keys settings. Saved changes apply within 30 seconds, or on the next M key press.\r\n"
         "; A key is F1-F24, A-Z, 0-9 or none, optionally after Ctrl+, Shift+, Alt+, Win+ (Ctrl+F13).\r\n"
@@ -398,10 +439,11 @@ static void WriteDefaultIni(void)
         "[MR]\r\nkey=Ctrl+F19\r\n"
         "; The active set, remembered by g710.exe.\r\n[state]\r\nset=1\r\n";
     HANDLE f = CreateFileW(g_ini, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (f == INVALID_HANDLE_VALUE) return;
+    if (f == INVALID_HANDLE_VALUE) return FALSE;
     DWORD written;
     WriteFile(f, text, (DWORD)(sizeof text - 1), &written, NULL);
     CloseHandle(f);
+    return TRUE;
 }
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
@@ -413,11 +455,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
         return 0;
     }
 
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     GetModuleFileNameW(NULL, g_exe, MAX_PATH);
-    wcscpy_s(g_ini, MAX_PATH, g_exe);
-    wchar_t *slash = wcsrchr(g_ini, L'\\');
-    if (slash) wcscpy_s(slash + 1, MAX_PATH - (slash + 1 - g_ini), L"g710.ini");
-    WriteDefaultIni();
+    FindIni();
+    BOOL first_run = WriteDefaultIni();
+    if (LogonEnabled()) SetLogon(TRUE); /* keeps the logon entry pointing here if the exe was moved */
     LoadKeys();
     int set = (int)GetPrivateProfileIntW(L"state", L"set", 1, g_ini) - 1;
     g_set = (set >= 0 && set <= 2) ? set : 0;
@@ -443,6 +485,14 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
     g_quit = CreateEventW(NULL, TRUE, FALSE, NULL);
     g_recheck = CreateEventW(NULL, FALSE, FALSE, NULL);
     HANDLE thread = CreateThread(NULL, 64 * 1024, ReaderThread, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
+
+    if (first_run &&
+        MessageBoxW(NULL,
+                    L"G710 keys is running: it's the blue G in the tray, where you can change the keys or quit.\n\n"
+                    L"Start it automatically when you log on to Windows?",
+                    APP_NAME, MB_YESNO | MB_ICONQUESTION) == IDYES)
+        SetLogon(TRUE);
+    WarnIfLogitechRuns();
 
     MSG msg;
     while (GetMessageW(&msg, NULL, 0, 0) > 0) {

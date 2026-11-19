@@ -6,4 +6,5 @@ if not exist "%VCVARS%" (echo Visual Studio C++ tools not found: %VCVARS% & exit
 call "%VCVARS%" >nul || exit /b 1
 cd /d "%~dp0"
 if not exist build mkdir build
-cl /nologo /O1 /W4 /MT /Fo"build\\" /Fe"g710.exe" src\g710.c /link /SUBSYSTEM:WINDOWS
+rc /nologo /fo build\g710.res src\g710.rc || exit /b 1
+cl /nologo /O1 /W4 /MT /Fo"build\\" /Fe"g710.exe" src\g710.c build\g710.res /link /SUBSYSTEM:WINDOWS
