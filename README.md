@@ -17,16 +17,6 @@ Makes the Logitech G710+ G1-G6, M1-M3 and MR keys work without Logitech's softwa
 
 No admin rights or driver needed.
 
-## Check your download (optional)
-
-Each release is built by GitHub from this repo's code, and GitHub signs a public record of which exe came from which commit. To check that your `g710.exe` is that exe, with the [GitHub CLI](https://cli.github.com/):
-
-```
-gh attestation verify g710.exe --repo kelno/g710-keys
-```
-
-Without it, compare the file's SHA-256 with the one in the release notes: in PowerShell, `Get-FileHash g710.exe`. That only shows the file wasn't changed after the release was published.
-
 ## What the keys do
 
 M1, M2 and M3 choose one of three sets for G1-G6; the chosen M key lights up, and the set is remembered across restarts.
@@ -64,6 +54,14 @@ Tray icon > Uninstall. It removes the start-with-Windows entry, the installed co
 - Logitech G Hub doesn't support the G710+ as far as known, so it shouldn't interfere (not tested while it ran).
 - Portable use: put a `g710.ini` next to `g710.exe` (an empty file is enough). It then keeps its settings there and never offers to install.
 - Start with Windows is a "G710 keys" entry in the current user's Run key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`).
+
+## Check your download (optional)
+
+Each release is built by GitHub from this repo's code, and GitHub signs a public record of which exe came from which commit. To check that your `g710.exe` is that exe, with the [GitHub CLI](https://cli.github.com/):
+
+```
+gh attestation verify g710.exe --repo kelno/g710-keys
+```
 
 ## Development
 
